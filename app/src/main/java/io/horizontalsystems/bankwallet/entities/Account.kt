@@ -54,6 +54,17 @@ open class AccountType : Parcelable {
     }
 
     @Parcelize
+    data class Watch(val address: String) : AccountType() {
+        override fun equals(other: Any?): Boolean {
+            return other is Watch && address == other.address
+        }
+
+        override fun hashCode(): Int {
+            return address.hashCode()
+        }
+    }
+
+    @Parcelize
     enum class Derivation(val value: String) : Parcelable {
         bip44("bip44"),
         bip49("bip49"),

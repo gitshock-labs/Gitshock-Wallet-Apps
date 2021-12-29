@@ -9,6 +9,7 @@ import io.horizontalsystems.bankwallet.entities.EvmNetwork
 import io.horizontalsystems.core.BackgroundManager
 import io.horizontalsystems.erc20kit.core.Erc20Kit
 import io.horizontalsystems.ethereumkit.core.EthereumKit
+import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.oneinchkit.OneInchKit
 import io.horizontalsystems.uniswapkit.UniswapKit
 import io.reactivex.Observable
@@ -83,12 +84,8 @@ class EvmKitManager(
         }
 
         if (this.evmKit == null) {
-            if (account.type !is AccountType.Mnemonic)
-                throw UnsupportedAccountException()
-
+            this.evmKit = createKitInstance(account)
             useCount = 0
-
-            this.evmKit = createKitInstance(account.type, account)
             currentAccount = account
         }
 
@@ -96,17 +93,34 @@ class EvmKitManager(
         return this.evmKit!!
     }
 
-    private fun createKitInstance(accountType: AccountType.Mnemonic, account: Account): EthereumKit {
+    private fun createKitInstance(account: Account): EthereumKit {
         val evmNetwork = evmNetworkProvider.getEvmNetwork(account)
-        val kit = EthereumKit.getInstance(
-            App.instance,
-            accountType.words,
-            accountType.passphrase,
-            evmNetwork.networkType,
-            evmNetwork.syncSource,
-            etherscanApiKey,
-            account.id
-        )
+        val accountType = account.type
+        val kit = when (accountType) {
+            is AccountType.Mnemonic -> {
+                EthereumKit.getInstance(
+                    App.instance,
+                    accountType.words,
+                    accountType.passphrase,
+                    evmNetwork.networkType,
+                    evmNetwork.syncSource,
+                    etherscanApiKey,
+                    account.id
+                )
+            }
+            is AccountType.Watch -> {
+                EthereumKit.getInstance(
+                    App.instance,
+                    Address(accountType.address),
+                    evmNetwork.networkType,
+                    evmNetwork.syncSource,
+                    etherscanApiKey,
+                    account.id
+                )
+
+            }
+            else -> throw UnsupportedAccountException()
+        }
 
         Erc20Kit.addTransactionSyncer(kit)
         Erc20Kit.addDecorator(kit)

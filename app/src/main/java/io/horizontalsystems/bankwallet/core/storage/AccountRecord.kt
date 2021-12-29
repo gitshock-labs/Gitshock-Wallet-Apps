@@ -14,7 +14,8 @@ data class AccountRecord(var id: String,
                          var isBackedUp: Boolean,
                          var words: SecretList?,
                          var passphrase: SecretString?,
-                         var key: SecretString?) {
+                         var key: SecretString?,
+                         var address: String?) {
 
     var deleted = false
 
