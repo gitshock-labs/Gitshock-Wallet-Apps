@@ -56,6 +56,7 @@ class App : CoreApp(), WorkConfiguration.Provider  {
         lateinit var adapterManager: IAdapterManager
         lateinit var transactionAdapterManager: TransactionAdapterManager
         lateinit var walletManager: IWalletManager
+        lateinit var walletActivator: WalletActivator
         lateinit var walletStorage: IWalletStorage
         lateinit var accountManager: IAccountManager
         lateinit var accountFactory: IAccountFactory
@@ -214,6 +215,14 @@ class App : CoreApp(), WorkConfiguration.Provider  {
         activateCoinManager = ActivateCoinManager(marketKit, walletManager, accountManager)
 
         releaseNotesManager = ReleaseNotesManager(systemInfoManager, localStorage, appConfigProvider)
+
+        walletActivator = WalletActivator(walletManager, marketKit, walletStorage)
+
+        val watcherWalletHandler = WatcherWalletHandler(walletActivator)
+        val watcherAccountHandler = WatcherAccountHandler(watcherWalletHandler)
+        val watcherMain = WatcherMain(accountManager, watcherAccountHandler)
+
+        watcherMain.start()
 
         setAppTheme()
 
