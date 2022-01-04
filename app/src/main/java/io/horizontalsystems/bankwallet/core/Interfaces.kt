@@ -138,6 +138,7 @@ interface IWalletStorage {
     fun save(wallets: List<Wallet>)
     fun delete(wallets: List<Wallet>)
     fun clear()
+    fun isEnabled(accountId: String, coinId: String): Boolean
 }
 
 interface IRandomProvider {
