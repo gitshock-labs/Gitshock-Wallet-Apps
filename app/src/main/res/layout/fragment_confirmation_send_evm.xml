@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         app:menu="@menu/close_menu"
-        app:title="@string/Swap_Confirmation"
+        app:title="@string/Send_Confirmation_Title"
         app:navigationIcon="@drawable/ic_back"
         app:titleTextAppearance="@style/Title3" />
 
@@ -29,9 +29,7 @@
                 android:id="@+id/sendEvmTransactionView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="12dp"
-                android:layout_marginEnd="16dp" />
+                android:layout_marginTop="12dp" />
 
             <androidx.compose.ui.platform.ComposeView
                 android:id="@+id/buttonSendCompose"

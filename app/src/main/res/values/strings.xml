@@ -360,6 +360,14 @@
     <string name="Send_Token_InsufficientFeeAlert">Transaction fees for %1$s (%2$s) paid in %3$s. You need %4$s.</string>
     <string name="Send_Warning_LowFee">Warning! Risk of getting stuck</string>
 
+    <!-- Fee Settings -->
+
+    <string name="FeeSettings_Title">Fee Settings</string>
+    <string name="FeeSettings_MaxFee">Max Fee</string>
+    <string name="FeeSettings_Fee">Fee</string>
+    <string name="FeeSettings_GasLimit">Gas Limit</string>
+    <string name="FeeSettings_GasPrice">Gas Price</string>
+
     <!--Fee Info -->
 
     <string name="FeeInfo_Title">Transaction Speed</string>

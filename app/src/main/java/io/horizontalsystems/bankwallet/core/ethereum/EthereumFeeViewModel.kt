@@ -1,30 +1,31 @@
 package io.horizontalsystems.bankwallet.core.ethereum
 
+import androidx.core.util.toRange
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import io.horizontalsystems.bankwallet.R
+import io.horizontalsystems.bankwallet.core.App
+import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService.GasData
+import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService.GasPrice
+import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService.Unit
 import io.horizontalsystems.bankwallet.core.providers.Translator
 import io.horizontalsystems.bankwallet.entities.DataState
+import io.horizontalsystems.bankwallet.entities.ViewState
 import io.horizontalsystems.core.SingleLiveEvent
 import io.reactivex.disposables.CompositeDisposable
+import java.math.BigDecimal
 
 class EthereumFeeViewModel(
-    private val transactionFeeService: IEvmTransactionFeeService,
+    private val feeService: IEvmTransactionFeeService,
     private val coinService: EvmCoinService
 ) : ViewModel(), ISendFeeViewModel, ISendFeePriorityViewModel {
 
-    override val hasEstimatedFee: Boolean = transactionFeeService.hasEstimatedFee
+    override val hasEstimatedFee: Boolean = feeService.hasEstimatedFee
 
-    enum class Priority {
-        Recommended {
-            override val description by lazy { Translator.getString(R.string.Send_TxSpeed_Recommended) }
-        },
-        Custom {
-            override val description by lazy { Translator.getString(R.string.Send_TxSpeed_Custom) }
-        };
-
-        abstract val description: String
+    enum class Priority(val description: String) {
+        Recommended(Translator.getString(R.string.Send_TxSpeed_Recommended)),
+        Custom(Translator.getString(R.string.Send_TxSpeed_Custom))
     }
 
     override val estimatedFeeLiveData = MutableLiveData("")
@@ -35,40 +36,43 @@ class EthereumFeeViewModel(
     override val feeSliderLiveData = MutableLiveData<SendFeeSliderViewItem?>(null)
     override val warningOfStuckLiveData = MutableLiveData<Boolean>()
 
+    val viewStateLiveData = MutableLiveData<ViewState>()
+    val gasDataLiveData = MutableLiveData<GasData>()
+
     private val customFeeUnit = "gwei"
     private val disposable = CompositeDisposable()
 
     init {
-        syncTransactionStatus(transactionFeeService.transactionStatus)
-        syncGasPriceType(transactionFeeService.gasPriceType)
+        syncTransactionStatus(feeService.transactionStatus)
+        syncGasPriceType(feeService.gasPriceType)
 
-        transactionFeeService.transactionStatusObservable
-                .subscribe { transactionStatus ->
-                    syncTransactionStatus(transactionStatus)
-                }
-                .let {
-                    disposable.add(it)
-                }
+        feeService.transactionStatusObservable
+            .subscribe { transactionStatus ->
+                syncTransactionStatus(transactionStatus)
+            }
+            .let {
+                disposable.add(it)
+            }
 
-        transactionFeeService.gasPriceTypeObservable
-                .subscribe { gasPriceType ->
-                    syncGasPriceType(gasPriceType)
-                }
-                .let {
-                    disposable.add(it)
-                }
+        feeService.gasPriceTypeObservable
+            .subscribe { gasPriceType ->
+                syncGasPriceType(gasPriceType)
+            }
+            .let {
+                disposable.add(it)
+            }
 
-        transactionFeeService.warningOfStuckObservable
-                .subscribe { warningOfStuck ->
-                    warningOfStuckLiveData.postValue(warningOfStuck)
-                }
-                .let {
-                    disposable.add(it)
-                }
+        feeService.warningOfStuckObservable
+            .subscribe { warningOfStuck ->
+                warningOfStuckLiveData.postValue(warningOfStuck)
+            }
+            .let {
+                disposable.add(it)
+            }
     }
 
     override fun openSelectPriority() {
-        val currentPriority = getPriority(transactionFeeService.gasPriceType)
+        val currentPriority = getPriority(feeService.gasPriceType)
 
         val viewItems = Priority.values().map {
             SendPriorityViewItem(it.description, currentPriority == it)
@@ -79,17 +83,24 @@ class EthereumFeeViewModel(
 
     override fun selectPriority(index: Int) {
         val selectedPriority = Priority.values()[index]
-        val currentPriority = getPriority(transactionFeeService.gasPriceType)
+        val currentPriority = getPriority(feeService.gasPriceType)
 
         if (selectedPriority == currentPriority) return
 
-        transactionFeeService.gasPriceType = when (selectedPriority) {
+        feeService.gasPriceType = when (selectedPriority) {
             Priority.Recommended -> {
                 EvmTransactionFeeService.GasPriceType.Recommended
             }
             Priority.Custom -> {
-                val transaction = transactionFeeService.transactionStatus.dataOrNull
-                val gasPrice = transaction?.gasData?.gasPrice ?: transactionFeeService.customFeeRange.first
+                val transaction = feeService.transactionStatus.dataOrNull
+                val gasPrice = transaction?.gasData?.gasPrice
+                    ?: GasPrice.Legacy(
+                        EvmTransactionFeeService.BoundedValue(
+                            feeService.customFeeRange.first,
+                            feeService.customFeeRange.toRange()
+                        ),
+                        Unit.WEI
+                    )
 
                 EvmTransactionFeeService.GasPriceType.Custom(gasPrice)
             }
@@ -97,12 +108,30 @@ class EthereumFeeViewModel(
     }
 
     override fun changeCustomPriority(value: Long) {
-        transactionFeeService.gasPriceType = EvmTransactionFeeService.GasPriceType.Custom(wei(value))
+        feeService.gasPriceType =
+            EvmTransactionFeeService.GasPriceType.Custom(
+                GasPrice.Legacy(
+                    EvmTransactionFeeService.BoundedValue(
+                        convert(value, Unit.GWEI, Unit.WEI).toLong(),
+                        feeService.customFeeRange.toRange()
+                    ),
+                    Unit.WEI
+                )
+            )
+    }
+
+    fun formatGasLimit(gasLimit: Long): String {
+        return App.numberFormatter.format(gasLimit.toBigDecimal(), 0, 0)
     }
 
     private fun syncTransactionStatus(transactionStatus: DataState<EvmTransactionFeeService.Transaction>) {
         estimatedFeeLiveData.postValue(estimatedFeeStatus(transactionStatus))
         feeLiveData.postValue(feeStatus(transactionStatus))
+
+        viewStateLiveData.postValue(transactionStatus.viewState)
+        transactionStatus.dataOrNull?.let { transaction ->
+            gasDataLiveData.postValue(transaction.gasData)
+        }
     }
 
     private fun syncGasPriceType(gasPriceType: EvmTransactionFeeService.GasPriceType) {
@@ -114,11 +143,21 @@ class EthereumFeeViewModel(
             }
             is EvmTransactionFeeService.GasPriceType.Custom -> {
                 if (feeSliderLiveData.value == null) {
-                    val gasPrice = gasPriceType.gasPrice
-                    feeSliderLiveData.postValue(SendFeeSliderViewItem(initialValue = gwei(wei = gasPrice), range = gwei(transactionFeeService.customFeeRange), unit = customFeeUnit))
+                    val gasPrice = gasPriceType.gasPrice.value
+                    feeSliderLiveData.postValue(
+                        SendFeeSliderViewItem(
+                            initialValue = gwei(wei = gasPrice),
+                            range = gwei(feeService.customFeeRange),
+                            unit = customFeeUnit
+                        )
+                    )
                 }
             }
         }
+    }
+
+    fun convert(value: Long, fromUnit: Unit, toUnit: Unit): BigDecimal {
+        return BigDecimal(value * fromUnit.factor) / toUnit.factor.toBigDecimal()
     }
 
     private fun gwei(wei: Long): Long {
@@ -173,6 +212,7 @@ class EthereumFeeViewModel(
 data class SendFeeSliderViewItem(val initialValue: Long, val range: LongRange, val unit: String)
 data class SendPriorityViewItem(val title: String, val selected: Boolean)
 
+//TODO remove unused fields after refactoring
 interface ISendFeeViewModel {
     val hasEstimatedFee: Boolean
     val estimatedFeeLiveData: MutableLiveData<String>

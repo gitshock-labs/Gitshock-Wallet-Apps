@@ -1,5 +1,6 @@
 package io.horizontalsystems.bankwallet.modules.sendevmtransaction
 
+import androidx.core.util.toRange
 import io.horizontalsystems.bankwallet.core.AppLogger
 import io.horizontalsystems.bankwallet.core.Clearable
 import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService
@@ -82,7 +83,9 @@ class SendEvmTransactionService(
     init {
         transactionFeeService.transactionStatusObservable.subscribeIO { syncState() }.let { disposable.add(it) }
         transactionFeeService.setTransactionData(sendEvmData.transactionData)
-        gasPrice?.let { transactionFeeService.gasPriceType = GasPriceType.Custom(it) }
+        gasPrice?.let { transactionFeeService.gasPriceType = GasPriceType.Custom(
+            EvmTransactionFeeService.GasPrice.Legacy(EvmTransactionFeeService.BoundedValue(it, transactionFeeService.customFeeRange.toRange()), EvmTransactionFeeService.Unit.WEI)
+        ) }
     }
 
     override fun send(logger: AppLogger) {
@@ -95,16 +98,16 @@ class SendEvmTransactionService(
         sendState = SendState.Sending
         logger.info("sending tx")
 
-        evmKitWrapper.sendSingle(transaction.transactionData, transaction.gasData.gasPrice, transaction.gasData.gasLimit, transaction.transactionData.nonce)
-                .subscribeIO({ fullTransaction ->
-                    handlePostSendActions()
-                    sendState = SendState.Sent(fullTransaction.transaction.hash)
-                    logger.info("success")
-                }, { error ->
-                    sendState = SendState.Failed(error)
-                    logger.warning("failed", error)
-                })
-                .let { disposable.add(it) }
+//        evmKitWrapper.sendSingle(transaction.transactionData, transaction.gasData.gasPrice.value, transaction.gasData.gasLimit, transaction.transactionData.nonce)
+//                .subscribeIO({ fullTransaction ->
+//                    handlePostSendActions()
+//                    sendState = SendState.Sent(fullTransaction.transaction.hash)
+//                    logger.info("success")
+//                }, { error ->
+//                    sendState = SendState.Failed(error)
+//                    logger.warning("failed", error)
+//                })
+//                .let { disposable.add(it) }
     }
 
     override fun clear() {

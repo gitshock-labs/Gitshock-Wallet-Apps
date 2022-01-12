@@ -1,10 +1,13 @@
 package io.horizontalsystems.bankwallet.modules.swap.confirmation.oneinch
 
 import android.os.Parcelable
+import androidx.core.util.toRange
 import io.horizontalsystems.bankwallet.core.EvmError
 import io.horizontalsystems.bankwallet.core.FeeRatePriority
 import io.horizontalsystems.bankwallet.core.ICustomRangedFeeProvider
+import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService
 import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService.*
+import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService.Unit
 import io.horizontalsystems.bankwallet.core.ethereum.IEvmTransactionFeeService
 import io.horizontalsystems.bankwallet.core.subscribeIO
 import io.horizontalsystems.bankwallet.entities.Address
@@ -110,7 +113,8 @@ class OneInchTransactionFeeService(
         val gasData = GasData(
             estimatedGasLimit = swapTx.gasLimit,
             gasLimit = getSurchargedGasLimit(swapTx.gasLimit),
-            gasPrice = swapTx.gasPrice
+            gasPrice = GasPrice.Legacy(BoundedValue(swapTx.gasPrice, feeRateProvider.customFeeRange.toRange()), Unit.WEI),
+
         )
         if (gasPriceType == GasPriceType.Recommended) {
             recommendedGasPrice = swapTx.gasPrice.toBigInteger()
@@ -156,7 +160,7 @@ class OneInchTransactionFeeService(
                     recommendedGasPriceSingle = Single.just(it)
                 }
                 recommendedGasPriceSingle.map { recommended ->
-                    val customGasPrice = gasPriceType.gasPrice.toBigInteger()
+                    val customGasPrice = gasPriceType.gasPrice.value.toBigInteger()
                     warningOfStuckSubject.onNext(customGasPrice < recommended)
                     Optional.ofNullable(customGasPrice)
                 }

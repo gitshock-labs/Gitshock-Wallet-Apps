@@ -123,12 +123,12 @@ class BinanceSmartChainFeeRateProvider(
     )
 
     override val recommendedFeeRate: Single<BigInteger> =
-        feeRateProvider.ethereumGasPrice()
+        feeRateProvider.binanceSmartChainGasPrice()
             .map { getAdjustedGasPrice(maxOf(it.toLong(), customFeeRange.first), multiply) }
 
     companion object {
         private const val defaultLowerBound: Long = 1_000_000_000
-        private const val defaultUpperBound: Long = 400_000_000_000
+        private const val defaultUpperBound: Long = 50_000_000_000
     }
 }
 

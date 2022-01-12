@@ -202,7 +202,7 @@ class OneInchSendEvmTransactionService(
         sendState = SendEvmTransactionService.SendState.Sending
         logger.info("sending tx")
 
-        evmKitWrapper.sendSingle(transaction.transactionData, transaction.gasData.gasPrice, transaction.gasData.gasLimit)
+        evmKitWrapper.sendSingle(transaction.transactionData, transaction.gasData.gasPrice.value, transaction.gasData.gasLimit)
             .subscribeIO({ fullTransaction ->
                 activateSwapCoinOut()
                 sendState = SendEvmTransactionService.SendState.Sent(fullTransaction.transaction.hash)
