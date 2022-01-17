@@ -41,6 +41,17 @@ object SendEvmConfirmationModule {
         private val coinServiceFactory by lazy { EvmCoinServiceFactory(feeCoin, App.marketKit, App.currencyManager) }
         private val sendService by lazy { SendEvmTransactionService(sendEvmData, evmKitWrapper, transactionService, App.activateCoinManager) }
 
+        private val isEip1559 by lazy {
+            when (evmKitWrapper.evmKit.networkType) {
+                NetworkType.EthMainNet,
+                NetworkType.EthRopsten,
+                NetworkType.EthKovan,
+                NetworkType.EthGoerli,
+                NetworkType.EthRinkeby -> true
+                NetworkType.BscMainNet -> false
+            }
+        }
+
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return when (modelClass) {

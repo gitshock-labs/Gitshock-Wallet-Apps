@@ -4,10 +4,23 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.FragmentManager
@@ -16,9 +29,11 @@ import androidx.recyclerview.widget.RecyclerView
 import io.horizontalsystems.bankwallet.R
 import io.horizontalsystems.bankwallet.core.ethereum.EthereumFeeViewModel
 import io.horizontalsystems.bankwallet.databinding.*
+import io.horizontalsystems.bankwallet.core.ethereum.ISendFeeViewModel
 import io.horizontalsystems.bankwallet.modules.transactionInfo.ColoredValue
 import io.horizontalsystems.bankwallet.ui.compose.ComposeAppTheme
 import io.horizontalsystems.bankwallet.ui.compose.components.ButtonSecondaryDefault
+import io.horizontalsystems.bankwallet.ui.compose.components.CellSingleLineLawrenceSection
 import io.horizontalsystems.bankwallet.ui.compose.components.Ellipsis
 import io.horizontalsystems.bankwallet.ui.compose.components.TextImportant
 import io.horizontalsystems.bankwallet.ui.helpers.TextHelper
@@ -35,18 +50,48 @@ class SendEvmTransactionView @JvmOverloads constructor(
 
     fun init(
         transactionViewModel: SendEvmTransactionViewModel,
+        feeViewModel: ISendFeeViewModel,
+        viewLifecycleOwner: LifecycleOwner,
+        onClickEditFee: () -> Unit
+    ) {
+        binding.feeViewCompose.setViewCompositionStrategy(
+            ViewCompositionStrategy.DisposeOnLifecycleDestroyed(viewLifecycleOwner)
+        )
+
+        binding.feeViewCompose.setContent {
+            ComposeAppTheme {
+                val fee by feeViewModel.feeLiveData.observeAsState()
+                FeeCell(title = stringResource(R.string.FeeSettings_MaxFee), fee, onClickEditFee)
+            }
+        }
+
+        val adapter = SendEvmTransactionAdapter()
+        binding.recyclerView.adapter = adapter
+
+        transactionViewModel.viewItemsLiveData.observe(viewLifecycleOwner, {
+            adapter.items = flattenSectionViewItems(it)
+            adapter.notifyDataSetChanged()
+        })
+
+        transactionViewModel.errorLiveData.observe(viewLifecycleOwner, {
+            binding.error.text = it
+        })
+    }
+
+    fun init(
+        transactionViewModel: SendEvmTransactionViewModel,
         ethereumFeeViewModel: EthereumFeeViewModel,
         viewLifecycleOwner: LifecycleOwner,
         fragmentManager: FragmentManager,
         showSpeedInfoListener: () -> Unit
     ) {
-        binding.feeSelectorView.setFeeSelectorViewInteractions(
-            ethereumFeeViewModel,
-            ethereumFeeViewModel,
-            viewLifecycleOwner,
-            fragmentManager,
-            showSpeedInfoListener
-        )
+//        binding.feeSelectorView.setFeeSelectorViewInteractions(
+//            ethereumFeeViewModel,
+//            ethereumFeeViewModel,
+//            viewLifecycleOwner,
+//            fragmentManager,
+//            showSpeedInfoListener
+//        )
 
         val adapter = SendEvmTransactionAdapter()
         binding.recyclerView.adapter = adapter
@@ -79,6 +124,41 @@ class SendEvmTransactionView @JvmOverloads constructor(
         return viewItems
     }
 
+}
+
+@Composable
+fun FeeCell(title: String, value: String? = null, onClick: (() -> Unit)? = null) {
+    CellSingleLineLawrenceSection {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(enabled = onClick != null, onClick = { onClick?.invoke() })
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = ComposeAppTheme.typography.subhead2,
+                color = ComposeAppTheme.colors.grey
+            )
+
+            Text(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp),
+                text = value ?: "",
+                style = ComposeAppTheme.typography.subhead1,
+                color = ComposeAppTheme.colors.leah, //leah or oz??
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            onClick?.let {
+                Image(painter = painterResource(id = R.drawable.ic_edit_20), contentDescription = "")
+            }
+        }
+    }
 }
 
 data class ViewItemWithPosition(

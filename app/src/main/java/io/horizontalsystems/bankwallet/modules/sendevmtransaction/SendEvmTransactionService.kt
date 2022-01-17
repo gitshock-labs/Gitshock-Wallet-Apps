@@ -4,6 +4,7 @@ import io.horizontalsystems.bankwallet.core.AppLogger
 import io.horizontalsystems.bankwallet.core.Clearable
 import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService
 import io.horizontalsystems.bankwallet.core.ethereum.EvmTransactionFeeService.GasPriceType
+import io.horizontalsystems.bankwallet.core.ethereum.IEvmTransactionFeeService
 import io.horizontalsystems.bankwallet.core.managers.ActivateCoinManager
 import io.horizontalsystems.bankwallet.core.managers.EvmKitWrapper
 import io.horizontalsystems.bankwallet.core.subscribeIO
@@ -41,8 +42,8 @@ interface ISendEvmTransactionService {
 
 class SendEvmTransactionService(
     private val sendEvmData: SendEvmData,
-    private val evmKitWrapper: EvmKitWrapper,
-    private val transactionFeeService: EvmTransactionFeeService,
+    evmKitWrapper: EvmKitWrapper,
+    private val transactionFeeService: IEvmTransactionFeeService,
     private val activateCoinManager: ActivateCoinManager,
     gasPrice: Long? = null
 ) : Clearable, ISendEvmTransactionService {
@@ -82,7 +83,9 @@ class SendEvmTransactionService(
     init {
         transactionFeeService.transactionStatusObservable.subscribeIO { syncState() }.let { disposable.add(it) }
         transactionFeeService.setTransactionData(sendEvmData.transactionData)
-        gasPrice?.let { transactionFeeService.gasPriceType = GasPriceType.Custom(it) }
+        gasPrice?.let { transactionFeeService.gasPriceType = GasPriceType.Custom(
+            EvmTransactionFeeService.GasPrice.Legacy(it, transactionFeeService.customFeeRange)
+        ) }
     }
 
     override fun send(logger: AppLogger) {
@@ -95,16 +98,16 @@ class SendEvmTransactionService(
         sendState = SendState.Sending
         logger.info("sending tx")
 
-        evmKitWrapper.sendSingle(transaction.transactionData, transaction.gasData.gasPrice, transaction.gasData.gasLimit, transaction.transactionData.nonce)
-                .subscribeIO({ fullTransaction ->
-                    handlePostSendActions()
-                    sendState = SendState.Sent(fullTransaction.transaction.hash)
-                    logger.info("success")
-                }, { error ->
-                    sendState = SendState.Failed(error)
-                    logger.warning("failed", error)
-                })
-                .let { disposable.add(it) }
+//        evmKitWrapper.sendSingle(transaction.transactionData, transaction.gasData.gasPrice.value, transaction.gasData.gasLimit, transaction.transactionData.nonce)
+//                .subscribeIO({ fullTransaction ->
+//                    handlePostSendActions()
+//                    sendState = SendState.Sent(fullTransaction.transaction.hash)
+//                    logger.info("success")
+//                }, { error ->
+//                    sendState = SendState.Failed(error)
+//                    logger.warning("failed", error)
+//                })
+//                .let { disposable.add(it) }
     }
 
     override fun clear() {

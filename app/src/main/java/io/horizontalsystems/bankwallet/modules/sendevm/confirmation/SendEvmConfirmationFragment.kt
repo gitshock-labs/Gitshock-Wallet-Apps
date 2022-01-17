@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.viewModels
 import androidx.navigation.navGraphViewModels
@@ -22,6 +23,7 @@ import io.horizontalsystems.bankwallet.modules.sendevm.SendEvmData
 import io.horizontalsystems.bankwallet.modules.sendevm.SendEvmModule
 import io.horizontalsystems.bankwallet.modules.sendevm.SendEvmViewModel
 import io.horizontalsystems.bankwallet.modules.sendevmtransaction.SendEvmTransactionViewModel
+import io.horizontalsystems.bankwallet.modules.sendevmtransaction.feesettings.SendEvmFeeSettingsFragment
 import io.horizontalsystems.bankwallet.ui.compose.ComposeAppTheme
 import io.horizontalsystems.bankwallet.ui.compose.components.ButtonPrimaryYellow
 import io.horizontalsystems.core.findNavController
@@ -43,7 +45,7 @@ class SendEvmConfirmationFragment : BaseFragment() {
         )
     }
     private val sendEvmTransactionViewModel by viewModels<SendEvmTransactionViewModel> { vmFactory }
-    private val feeViewModel by viewModels<EthereumFeeViewModel> { vmFactory }
+    private val feeViewModel by navGraphViewModels<EthereumFeeViewModel>(R.id.sendEvmConfirmationFragment) { vmFactory }
 
     private var snackbarInProcess: CustomSnackbar? = null
 
@@ -128,12 +130,18 @@ class SendEvmConfirmationFragment : BaseFragment() {
             sendEvmTransactionViewModel,
             feeViewModel,
             viewLifecycleOwner,
-            parentFragmentManager,
-            showSpeedInfoListener = {
-                findNavController().slideFromRight(
-                    R.id.sendEvmConfirmationFragment_to_feeSpeedInfo
-                )
+            onClickEditFee = {
+                val arguments = SendEvmFeeSettingsFragment.prepareParams(R.id.sendEvmConfirmationFragment)
+                findNavController().slideFromRight(R.id.sendEvmFeeSettingsFragment, arguments)
             }
+//            parentFragmentManager,
+//            showSpeedInfoListener = {
+//                findNavController().slideFromRight(
+//                    R.id.sendEvmConfirmationFragment_to_feeSpeedInfo,
+//                    null,
+//                    navOptions()
+//                )
+//            }
         )
 
         binding.buttonSendCompose.setViewCompositionStrategy(
@@ -153,7 +161,7 @@ class SendEvmConfirmationFragment : BaseFragment() {
                         end = 16.dp,
                         bottom = 24.dp
                     ),
-                    title = getString(R.string.Send_Confirmation_Send_Button),
+                    title = stringResource(R.string.Send_Confirmation_Send_Button),
                     onClick = {
                         logger.info("click send button")
                         sendEvmTransactionViewModel.send(logger)
